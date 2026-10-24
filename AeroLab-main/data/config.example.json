@@ -1,0 +1,8 @@
+{
+  "device_name": "AeroLab",
+  "wifi_ssid": "YOUR_WIFI_SSID",
+  "wifi_password": "YOUR_WIFI_PASSWORD",
+  "buzzer_enabled": true,
+  "temperature_limit": 40,
+  "humidity_limit": 70
+}

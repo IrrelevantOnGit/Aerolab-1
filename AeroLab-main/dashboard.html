@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en" data-alarm="0">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AEROLAB // FLIGHT CONTROL & DIGITAL TWIN HUD</title>
+<style>
+:root{--bg:#06080a;--p:#0b100f;--ln:#1c2824;--g:#7dff9b;--a:#ffb020;--r:#ff3b30;--cyan:#38bdf8;--purple:#c084fc;--tx:#c9d8d0;--dim:#667a71;--ac:var(--g)}
+html[data-alarm="1"]{--ac:var(--a)}html[data-alarm="2"]{--ac:var(--r)}
+*{box-sizing:border-box;margin:0}
+html,body{width:100%;height:100%;min-width:0;min-height:0}
+body{display:grid;grid-template-rows:46px minmax(0,1fr) 240px;background:var(--bg);color:var(--tx);font:12px/1.35 ui-monospace,"Cascadia Mono",Consolas,monospace;overflow:hidden;
+background-image:repeating-linear-gradient(0deg,#ffffff05 0 1px,transparent 1px 3px)}
+header{display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--ln);background:#080c0b}
+.logo{font-weight:700;letter-spacing:.22em;color:var(--ac);text-shadow:0 0 12px var(--ac)}
+.sp{flex:1}.dot{width:9px;height:9px;border-radius:50%;background:#444;display:inline-block;margin-right:6px}
+button,input{font:inherit;color:var(--tx);background:#101815;border:1px solid var(--ln);padding:5px 9px;border-radius:2px;cursor:pointer}
+button:hover{border-color:var(--ac);color:var(--ac)}button.on{background:var(--ac);color:#000;border-color:var(--ac);font-weight:700}
+input{cursor:text;width:140px}
+.badge{padding:3px 12px;border:1px solid var(--ac);color:var(--ac);letter-spacing:.14em;font-weight:700;box-shadow:0 0 14px color-mix(in srgb,var(--ac) 35%,transparent)}
+main{display:grid;grid-template-columns:minmax(190px,236px) minmax(0,1fr) minmax(230px,300px);min-width:0;min-height:0;overflow:hidden}
+aside{padding:10px;overflow:auto;border-right:1px solid var(--ln);background:var(--p)}aside.r{border-right:0;border-left:1px solid var(--ln)}
+h3{font-size:10px;letter-spacing:.2em;color:var(--dim);margin:12px 0 6px;font-weight:700;text-transform:uppercase}h3:first-child{margin-top:0}
+h3:before{content:"▍";color:var(--ac);margin-right:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:5px}.grid1{display:grid;gap:5px}
+.grid1 button,.grid2 button{text-align:left}
+#vp{position:relative;min-width:0;min-height:0;overflow:hidden;background:radial-gradient(ellipse at 50% 60%,#101a16,#050708 70%)}
+#vp canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
+.hud{position:absolute;pointer-events:none;color:var(--ac);text-shadow:0 0 8px #000}
+.hud b{font-size:22px;display:block;line-height:1}.hud small{color:var(--dim);letter-spacing:.18em;font-size:9px}
+.br{position:absolute;width:22px;height:22px;border:2px solid var(--ac);opacity:.8;pointer-events:none}
+#vtoggle{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:0}
+#reason{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);padding:4px 14px;border:1px solid var(--ac);background:#000b;color:var(--ac);max-width:80%;text-align:center;font-weight:700}
+.row{display:grid;grid-template-columns:78px 1fr 62px;align-items:center;gap:6px;margin:5px 0}
+.row i{display:block;height:4px;background:#14201c;position:relative}.row i u{position:absolute;left:0;top:0;bottom:0;background:var(--g);transition:width .15s}
+.row span{color:var(--dim)}.row em{font-style:normal;text-align:right}
+.row.range-row{grid-template-columns:70px minmax(18px,1fr) 92px;gap:4px;margin:6px 0}
+.row.range-row em{display:flex;flex-direction:column;align-items:flex-end;line-height:1.15;white-space:nowrap}
+.row.range-row em small{font-size:8px;color:var(--dim);font-weight:400}
+.warn u{background:var(--a)!important}.crit u{background:var(--r)!important}.sensor-offline em{color:var(--r)!important;font-weight:700}.sensor-uncalibrated em{color:var(--a)!important}
+footer{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) minmax(150px,1.1fr);border-top:1px solid var(--ln);background:var(--p);min-width:0;min-height:0;overflow:hidden}
+footer>div{border-right:1px solid var(--ln);padding:6px 8px;min-width:0;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+footer canvas{display:block;flex:1 1 0;height:0;min-width:0;min-height:0;width:100%;max-width:100%;background:#03060a;border:1px solid #14201c;border-radius:2px}
+.scope-hdr{display:flex;justify-content:space-between;align-items:center;gap:6px;min-width:0;min-height:14px;margin-bottom:4px}
+.scope-lbl{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--dim)}
+.scope-lbl:before{content:"▍";color:var(--ac);margin-right:3px}
+.scope-pill{flex:0 0 auto;max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;font-weight:700;padding:1px 5px;border-radius:2px;background:#101815;border:1px solid var(--ln)}
+@media(max-width:1050px){body{grid-template-rows:46px minmax(0,1fr) 210px}main{grid-template-columns:minmax(160px,190px) minmax(0,1fr) minmax(190px,230px)}footer{grid-template-columns:repeat(4,minmax(0,1fr)) minmax(120px,.9fr)}.logo{letter-spacing:.08em}header{gap:5px;padding:0 6px}header button{padding:4px 5px}input{width:110px}}
+#log{overflow:auto;font-size:11px;flex:1}#log div{padding:1px 0}
+label.sl{display:grid;grid-template-columns:44px 1fr 52px;gap:4px;align-items:center;margin:3px 0;color:var(--dim)}
+label.sl input{width:100%;padding:0}
+#msg{position:fixed;right:14px;bottom:250px;background:#000d;border:1px solid var(--a);color:var(--a);padding:8px 12px;display:none;z-index:9}
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">AEROLAB ◢ FLIGHT CONTROL</span>
+  <span><i class="dot" id="ld"></i><span id="lt">NO LINK</span> <span id="fps" style="color:var(--dim)"></span></span>
+  <span class="sp"></span>
+  <span class="badge" id="badge">STANDBY</span>
+  <span class="sp"></span>
+  <button id="bUsb">USB</button>
+  <input id="ip" value="192.168.4.1" placeholder="192.168.4.1"><button id="bWifi">WIFI</button>
+  <button id="bDemo">DEMO</button>
+  <button id="bRec">● REC</button><button id="bCsv">CSV</button><button id="bSndToggle" style="border-color:#22c55e;color:#22c55e;font-weight:700" onclick="toggleBuzzerSound()" title="Toggle Buzzer Sound ON/OFF">🔊 SOUND ON</button>
+  <button id="bPyScope" style="border-color:#38bdf8;color:#38bdf8;font-weight:bold" onclick="launchPythonScope()" title="Ultra-Fast 0.5s Native Python 4-Subplot Real-Time Scope">🐍 PYTHON SCOPE</button>
+  <button id="bMatlab" style="border-color:#818cf8;color:#a5b4fc;font-weight:bold" onclick="launchMatlabQuick()" title="Launch Desktop MATLAB R2025b Scope">🚀 MATLAB</button>
+  <a href="dashboard_analytics.html" style="text-decoration:none"><button style="border-color:var(--cyan);color:var(--cyan);font-weight:bold">📊 ANALYTICS</button></a>
+</header>
+<main>
+  <aside>
+    <h3>FLIGHT MODE</h3><div class="grid1" id="modes"></div>
+    <h3>FAULT INJECTION</h3><div class="grid2" id="scen"></div>
+    <h3>ACTIONS</h3><div class="grid2">
+      <button data-c="TEST_ALARM">TEST ALARM</button><button data-c="RESET_ALARM">RESET TWIN DETECTOR</button>
+  <button id="bMuteProx" onclick="toggleMuteProx()" style="border-color:var(--cyan);color:var(--cyan);font-weight:700">MUTE CAUTION BEEP</button>
+      <button id="bMuteAction" onclick="toggleBuzzerSound()" style="grid-column:span 2;border-color:#22c55e;color:#22c55e;font-weight:700">🔊 BUZZER SOUND: ON</button>
+      <button data-c="TARE_IMU" style="border-color:var(--g);color:var(--g)">TARE MPU [0°]</button><button data-c="RESET">RESET ALL [ESC]</button></div>
+    <h3>HIL SENSOR OVERRIDE</h3>
+    <label class="sl"><span>ON</span><input type="checkbox" id="ov" style="width:16px"></label>
+    <div id="sliders"></div>
+  </aside>
+  <section id="vp">
+    <div id="vtoggle"><button id="mQuad" class="on">QUADCOPTER</button><button id="mRig">BENCH RIG</button></div>
+    <div class="br" style="left:8px;top:8px;border-right:0;border-bottom:0"></div><div class="br" style="right:8px;top:8px;border-left:0;border-bottom:0"></div>
+    <div class="br" style="left:8px;bottom:8px;border-right:0;border-top:0"></div><div class="br" style="right:8px;bottom:8px;border-left:0;border-top:0"></div>
+    <div class="hud" style="left:22px;top:48px"><small>ROLL</small><b id="hRoll">0.0°</b><small>PITCH</small><b id="hPitch">0.0°</b></div>
+    <div class="hud" style="right:22px;top:48px;text-align:right"><small>FIXED US1</small><b id="hAlt">0 cm</b><small>SERVO US2</small><b id="hSrv">90°</b><small id="hServoRange">RANGE —</small><small id="hTrack">TRACK —</small></div>
+    <div class="hud" style="left:22px;bottom:48px"><small>MODE</small><b id="hMode" style="font-size:14px">—</b></div>
+    <div id="reason">AWAITING TELEMETRY</div>
+  </section>
+  <aside class="r">
+    <h3>TELEMETRY</h3><div id="kpi"></div>
+    <h3>STEP BENCHMARK (MODE 4)</h3><div id="step" style="color:var(--dim)">run Mode 4</div>
+    <h3>SYSTEM</h3><div id="sys" style="color:var(--dim)">—</div>
+  </aside>
+</main>
+<footer>
+  <!-- SCOPE 1: MODEL STATE COMPARISON -->
+  <div>
+    <div class="scope-hdr">
+      <span class="scope-lbl">MODEL STATES [x₁ vs y_twin] · NOT INDEPENDENT SENSOR DATA</span>
+      <span id="v_coinc" class="scope-pill" style="color:var(--g)">MODEL STATES</span>
+    </div>
+    <canvas id="c1"></canvas>
+  </div>
+  <!-- SCOPE 2: FAULT RESIDUAL & CUSUM -->
+  <div>
+    <div class="scope-hdr">
+      <span class="scope-lbl">SOFTWARE-MODEL RESIDUAL r(t) & CUSUM</span>
+      <span id="v_cusum" class="scope-pill" style="color:var(--g)">NOMINAL (δ=0.100, h=0.060)</span>
+    </div>
+    <canvas id="c2"></canvas>
+  </div>
+  <!-- SCOPE 3: LQR EFFORT & SERVO DAMPER -->
+  <div>
+    <div class="scope-hdr">
+      <span class="scope-lbl">LQR EFFORT u(t) & SERVO</span>
+      <span id="v_u" class="scope-pill" style="color:var(--purple)">u: 0.50 | 90°</span>
+    </div>
+    <canvas id="c3"></canvas>
+  </div>
+  <!-- SCOPE 4: ATTITUDE & PHASE PLANE -->
+  <div>
+    <div class="scope-hdr">
+      <span class="scope-lbl" id="c4_lbl">ATTITUDE ROLL / PITCH</span>
+      <button id="bPhase" style="padding:1px 6px;font-size:9px" onclick="togglePhase()">PHASE</button>
+    </div>
+    <canvas id="c4"></canvas>
+  </div>
+  <!-- EVENT LOG -->
+  <div>
+    <div class="scope-hdr">
+      <span class="scope-lbl">EVENT LOG</span>
+      <span class="scope-pill" style="color:var(--g)">LINK · RATE SHOWN ABOVE</span>
+    </div>
+    <div id="log"></div>
+  </div>
+</footer>
+<div id="msg"></div>
+<script src="vendor/three.min.js"></script>
+<script src="dashboard_scope_logic.js"></script>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const MODES=['ALL-SENSOR HUD','SERVO SCAN / SECTOR HOLD','RADAR SWEEP 180°','LQR + DIGITAL TWIN','STEP BENCHMARK','IMU GIMBAL'];
+const SCEN=[['thermal','THERMAL'],['gas','GAS'],['flame','DARKNESS TEST'],['vibration','VIBRATION'],['radar1','PROX US1'],['radar2','PROX US2'],['drift','TWIN DRIFT']];
+const KPI=[['temp','TEMP','°C',0,60,v=>v.toFixed(1),v=>v>38?2:v>34?1:0],['hum','HUMID','%',0,100,v=>v.toFixed(0)],
+['mq135','GAS 135','',0,4095,v=>v|0,v=>v>3200?2:v>2400?1:0],['mq2','GAS MQ2','',0,4095,v=>v|0],['ldr','LIGHT ADC (UNCAL.)','',0,4095,v=>v|0],
+['vib','VIB','g',0,1,v=>v.toFixed(2),v=>v>.4?1:0],['dist1','US1 FIXED','cm',0,200,v=>v.toFixed(1),v=>v<4?1:v<14?2:v<28?1:0],
+['dist2','US2 SERVO','cm',0,200,v=>v.toFixed(1),v=>v<4?1:v<14?2:v<28?1:0],['servo','SERVO','°',0,180,v=>v|0],['u','u(t)','',0,1,v=>v.toFixed(3)],
+['residual','RESIDUAL','',0,.3,v=>v.toFixed(3),v=>v>.100?2:v>.080?1:0],['cusum_sp','CUSUM S+','',0,.1,v=>v>=.060?2:0],['cusum_sm','CUSUM S-','',0,.1,v=>v>=.060?2:0]];
+
+let muteProx = false;
+function toggleMuteProx(){
+  muteProx = !muteProx;
+  const btn = $('bMuteProx');
+  if(btn){btn.classList.toggle('on', muteProx);btn.textContent = muteProx ? 'CAUTION BEEP MUTED' : 'MUTE CAUTION BEEP'}
+  send(muteProx ? 'PROX_MUTE' : 'PROX_UNMUTE');
+  show(muteProx?'Yellow proximity caution beep muted; visual alarms remain active.':'Yellow proximity caution beep enabled. Critical alerts remain audible.');
+}
+let soundEnabled = true;
+function toggleBuzzerSound(){
+  soundEnabled = !soundEnabled;
+  beep = soundEnabled;
+  if(beep && !ac) ac = new(window.AudioContext || window.webkitAudioContext)();
+  const hBtn = $('bSndToggle');
+  const aBtn = $('bMuteAction');
+  if(soundEnabled){
+    if(hBtn){hBtn.textContent='🔊 SOUND ON';hBtn.style.color='#22c55e';hBtn.style.borderColor='#22c55e'}
+    if(aBtn){aBtn.textContent='🔊 BUZZER SOUND: ON';aBtn.style.color='#22c55e';aBtn.style.borderColor='#22c55e'}
+    send('UNMUTE_BUZZER');
+    show('🔊 SOUND ENABLED: Buzzer alerts on Red/Caution alarms.');
+  } else {
+    if(hBtn){hBtn.textContent='🔇 SOUND OFF';hBtn.style.color='#f59e0b';hBtn.style.borderColor='#f59e0b'}
+    if(aBtn){aBtn.textContent='🔇 BUZZER SOUND: OFF';aBtn.style.color='#f59e0b';aBtn.style.borderColor='#f59e0b'}
+    send('MUTE_BUZZER');
+    show('🔇 SOUND MUTED: Buzzer is silent. All LEDs, sensors & graphs active!');
+  }
+}
+let D=null,live=0,lastT=0,frames=0,fps=0,beep=true,ac=null,rec=false,rows=[],logN=0,lastAl=-1,lastMode=-1,lastReason='',streamIsSimulation=false,streamSource='NO LINK';
+let showPhase=false;
+const N=240;
+const B={
+  x1:[], x1_hat:[], twin:[],
+  r:[], cs:[], csMinus:[],
+  u:[], srv:[],
+  ro:[], pi:[],
+  x2:[],
+  t:[], th:[]
+};
+
+const show=m=>{const e=$('msg');e.textContent=m;e.style.display='block';clearTimeout(e._h);e._h=setTimeout(()=>e.style.display='none',3500)};
+function togglePhase(){showPhase=!showPhase;$('bPhase').textContent=showPhase?'ATTITUDE':'PHASE';$('c4_lbl').textContent=showPhase?'PHASE PORTRAIT (x1, x2)':'ATTITUDE ROLL / PITCH'}
+
+// ---------- UI build ----------
+MODES.forEach((n,i)=>{const b=document.createElement('button');b.textContent=i+'  '+n;b.dataset.m=i;b.onclick=()=>send('MODE:'+i);$('modes').append(b)});
+SCEN.forEach(([k,n])=>{const b=document.createElement('button');b.textContent=n;b.onclick=()=>send('SCENARIO:'+k);$('scen').append(b)});
+document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>send(b.dataset.c));
+KPI.forEach(([k,l])=>{const r=document.createElement('div');r.className='row'+(['dist1','dist2'].includes(k)?' range-row':'');r.id='k_'+k;r.innerHTML=`<span>${l}</span><i><u></u></i><em>—</em>`;$('kpi').append(r)});
+const SL=[['temp','TEMP',20,60,28.5,.5],['gas','GAS',0,4095,700,10],['ldr','LDR',0,4095,2000,10],['vib','VIB',0,1.5,.02,.01],['dist','DIST',2,200,60,1]];
+SL.forEach(([k,l,mn,mx,v,s])=>{const w=document.createElement('label');w.className='sl';w.innerHTML=`<span>${l}</span><input type="range" id="s_${k}" min="${mn}" max="${mx}" step="${s}" value="${v}"><span id="v_${k}">${v}</span>`;$('sliders').append(w)});
+const sliders=()=>{SL.forEach(([k])=>$('v_'+k).textContent=$('s_'+k).value);send(`SLIDERS:${$('ov').checked?1:0},${SL.map(([k])=>$('s_'+k).value).join(',')}`)};
+$('sliders').oninput=sliders;$('ov').onchange=sliders;
+
+// ---------- link layer ----------
+let port=null,writer=null,wifi=null,wf=0,wt=null,demo=null,usbProxy=false,usbPollTimer=null;
+async function pollUsbBridge(){
+  if(!usbProxy)return;
+  try{
+    const r=await fetch('http://127.0.0.1:8088/telemetry',{cache:'no-store'}),d=await r.json();
+    if(d.source==='ESP32_FIRMWARE'&&Number.isFinite(d._age)&&d._age>=0&&d._age<=1.0)frame(d,false);
+    else if(live&&performance.now()-lastT>1500){live=0;note('USB telemetry stale — waiting for fresh firmware packet','#ff3b30')}
+  }catch(e){note('Local USB bridge unavailable: '+e.message,'#ff3b30')}
+  if(usbProxy)usbPollTimer=setTimeout(pollUsbBridge,50);
+}
+async function usb(){
+  if(demo){clearInterval(demo.h);demo=null;$('bDemo').classList.remove('on');note('DEMO stopped: selecting USB','#ffb020')}
+  if(wifi){wifi=null;clearTimeout(wt);$('bWifi').classList.remove('on')}
+  if(usbProxy){usbProxy=false;clearTimeout(usbPollTimer);$('bUsb').classList.remove('on');live=0;lastT=0;note('USB telemetry link closed','#ffb020');return}
+  if(port){try{await port.close()}catch(e){}port=writer=null;$('bUsb').classList.remove('on');return}
+  // The local bridge owns COM14 and fans out the validated stream to all views,
+  // so the dashboard must not race MATLAB/Python for the same USB port.
+  try{
+    const r=await fetch('http://127.0.0.1:8088/status',{cache:'no-store'}),s=await r.json();
+    if(s.usb&&s.usb.connected){usbProxy=true;$('bUsb').classList.add('on');note('USB LIVE: '+s.usb.port+' @ 460800 baud via local bridge','#7dff9b');pollUsbBridge();return}
+  }catch(e){}
+  if(!('serial' in navigator))return show('Web Serial needs Chrome / Edge');
+  try{port=await navigator.serial.requestPort();await port.open({baudRate:460800});}catch(e){port=null;return show('USB: '+e.message)}
+  $('bUsb').classList.add('on');
+  const enc=new TextEncoderStream();enc.readable.pipeTo(port.writable);writer=enc.writable.getWriter();
+  const rd=port.readable.pipeThrough(new TextDecoderStream()).getReader();let buf='';
+  (async()=>{try{for(;;){const{value,done}=await rd.read();if(done)break;buf+=value;let i;
+    while((i=buf.indexOf('\n'))>=0){const l=buf.slice(0,i).trim();buf=buf.slice(i+1);
+      if(l[0]==='{'){try{frame(JSON.parse(l))}catch(e){}}else if(l.startsWith('[CMD_ACK]'))note(l.slice(10),'#667a71')}}}
+    catch(e){note('USB lost: '+e.message,'#ff3b30')}port=writer=null;$('bUsb').classList.remove('on')})();
+}
+async function poll(){
+  if(!wifi)return;
+  const c=new AbortController(),t=setTimeout(()=>c.abort(),1200);
+  try{
+    const r=await fetch(wifi+'/telemetry',{signal:c.signal});
+    const d=await r.json();
+      frame(d,false);
+    wf=0;
+  }catch(e){
+    wf=Math.min(wf+1,4);
+  }finally{
+    clearTimeout(t);
+    if(wifi)wt=setTimeout(poll,wf===0?50:140);
+  }
+}
+function wifiToggle(){
+  if(demo){clearInterval(demo.h);demo=null;$('bDemo').classList.remove('on');note('DEMO stopped: selecting Wi-Fi','#ffb020')}
+  if(usbProxy){usbProxy=false;clearTimeout(usbPollTimer);$('bUsb').classList.remove('on')}
+  if(port){port.close().catch(()=>{});port=writer=null;$('bUsb').classList.remove('on')}
+  if(wifi){
+    wifi=null;clearTimeout(wt);$('bWifi').classList.remove('on');note('Wi-Fi link closed','#ffb020');return;
+  }
+  const h=($('ip').value.trim()||'192.168.4.1').replace(/^https?:\/\//,'').replace(/\/+$/,'');
+  if(!/^[\w.\-]+(:\d+)?$/.test(h))return show('Enter ESP32 IP or aerolab.local');
+  try{localStorage.setItem('ip',h)}catch(e){}
+  wifi='http://'+h;
+  $('bWifi').classList.add('on');
+  note('Wi-Fi telemetry link active -> '+h,'#7dff9b');
+  poll();
+}
+function send(c){
+  if(demo){note('DEMO: '+c,'#ffb020');if(c.startsWith('MODE:'))demo.mode=+c.slice(5);return}
+  if(writer)writer.write(c+'\n').catch(e=>show('write: '+e.message));
+  else if(usbProxy)fetch('http://127.0.0.1:8088/cmd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:c})}).then(r=>r.json()).then(d=>{if(d.status!=='ok')show('USB command: '+d.message)}).catch(e=>show('USB command: '+e.message));
+  else if(wifi)fetch(wifi+'/cmd?c='+encodeURIComponent(c)).catch(e=>show('cmd: '+e.message));
+  else show('Not connected: use USB, WIFI or DEMO');
+}
+
+// ---------- telemetry ----------
+function note(t,c){const d=document.createElement('div');d.style.color=c||'var(--tx)';d.textContent=new Date().toLocaleTimeString()+'  '+t;$('log').prepend(d);if(++logN>80)$('log').lastChild.remove()}
+function frame(d,isSimulation=false){
+    if(demo && !isSimulation)return;
+  d.source=isSimulation?'SIMULATION_ONLY':(d.manualOverride?'FIRMWARE_MANUAL_OVERRIDE':(d.source||'UNVERIFIED_SOURCE'));
+  D=d;frames++;lastT=performance.now();streamIsSimulation=isSimulation;streamSource=d.source;
+  if(!live){live=1;note(isSimulation?'SIMULATION ONLY - synthetic data, not hardware':d.source==='UNVERIFIED_SOURCE'?'UNVERIFIED STREAM - firmware provenance missing':'LIVE STREAM: '+d.source,isSimulation||d.source==='UNVERIFIED_SOURCE'?'#ffb020':'#7dff9b')}
+  document.documentElement.dataset.alarm=d.alarm;
+  const bd=$('badge');bd.textContent=['NOMINAL','CAUTION','CRITICAL'][d.alarm]||'—';
+  const sourceIsLive=!isSimulation&&d.source!=='UNVERIFIED_SOURCE';
+  const us1Fresh=AeroLabScopeLogic.freshUltrasonic(d,'us1');
+  const us2Fresh=AeroLabScopeLogic.freshUltrasonic(d,'us2');
+  const rangeNote=sourceIsLive&&d.manualOverride!==1&&(!us1Fresh||!us2Fresh)?'NO FRESH RANGE · ':'';
+  $('reason').textContent=rangeNote+(d.reason||'');$('hRoll').textContent=(Number.isFinite(d.roll)?d.roll:0).toFixed(1)+'°';$('hPitch').textContent=(Number.isFinite(d.pitch)?d.pitch:0).toFixed(1)+'°';
+  $('hAlt').textContent=(us1Fresh?d.dist1.toFixed(0):'—')+' cm';$('hSrv').textContent=(Number.isFinite(d.servo)?d.servo:90)+'°';$('hMode').textContent=MODES[d.mode]||d.mode;
+  const raw1=Number.isFinite(d.us1RawCm)?d.us1RawCm:NaN,raw2=Number.isFinite(d.us2RawCm)?d.us2RawCm:NaN;
+  document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('on',+b.dataset.m===d.mode));
+  KPI.forEach(([k,l,u,mn,mx,f,lv])=>{const v=d[k]??0,r=$('k_'+k);r.querySelector('em').textContent=f(v)+(u?' '+u:'');
+    r.querySelector('u').style.width=Math.max(0,Math.min(100,(v-mn)/(mx-mn)*100))+'%';const L=lv?lv(v):0;r.className='row'+(L==2?' crit':L==1?' warn':'')});
+  for(const [id,raw] of [['dist1',raw1],['dist2',raw2]]){
+    const fresh=id==='dist1'?us1Fresh:us2Fresh, r=$('k_'+id), nearLimit=fresh&&Number.isFinite(raw)&&raw<5;
+    if(r&&!isSimulation&&d.manualOverride!==1&&!fresh){r.className='row sensor-offline';r.querySelector('em').textContent='NO FRESH ECHO';r.querySelector('u').style.width='0%'}
+    else if(r&&!isSimulation&&d.manualOverride!==1&&nearLimit){r.className='row sensor-uncalibrated';r.querySelector('em').textContent='VERY CLOSE · VERIFY'}
+  }
+  const liveSensors=!isSimulation&&d.source==='ESP32_FIRMWARE'&&d.manualOverride!==1;
+  for(const [id,raw,age,filtered,fresh] of [['dist1',raw1,d.us1AgeMs,d.dist1,us1Fresh],['dist2',raw2,d.us2AgeMs,d.dist2,us2Fresh]]){
+    const value=$('k_'+id).querySelector('em');
+    if(liveSensors){const nearLimit=fresh&&Number.isFinite(raw)&&raw<5;
+      value.innerHTML=`<b>${!fresh?'NO FRESH ECHO':nearLimit?'VERY CLOSE · VERIFY':Number(filtered).toFixed(1)+' cm'}</b><small>raw ${Number.isFinite(raw)?raw.toFixed(1)+' cm':'—'} · ${Number.isFinite(age)?age+'ms':'—'}</small>`;
+      value.title=`Filtered ${fresh?Number(filtered).toFixed(2)+' cm':'unavailable'}; raw echo ${Number.isFinite(raw)?Number(raw).toFixed(2)+' cm':'unavailable'}; a raw reading below 5 cm is shown with an inspection warning while remaining a valid proximity alarm; last valid age ${Number.isFinite(age)?age+' ms':'unknown'}`;
+    }else if(isSimulation){value.innerHTML=`<b>${Number(filtered).toFixed(1)} cm</b><small>SIMULATION ONLY</small>`;value.title='Synthetic demo value; not sensor telemetry';}
+    else {value.innerHTML='<b>OVERRIDE</b><small>not live sensor data</small>';value.title='Manual HIL override is active';}
+  }
+  $('hServoRange').textContent=liveSensors?('US2 '+(us2Fresh?(Number.isFinite(raw2)&&raw2<5?'VERY CLOSE · VERIFY':d.dist2.toFixed(1)+' cm'):'NO FRESH ECHO')+' · '+(us2Fresh?'ECHO OK':'NO FRESH ECHO')):isSimulation?'SYNTHETIC / DEMO':'SENSOR OVERRIDE';
+  $('hTrack').textContent=liveSensors&&d.mode===1?(d.trackBroadReturn?'WIDE RETURN · CHECK MOUNT':(['SEARCH','LOCKED','REACQUIRE'][d.trackState]||'TRACK'))+' · '+(d.trackAngleIsCommanded?'CMD ':'ANGLE ')+(Number.isFinite(d.trackAngle)?d.trackAngle:d.servo).toFixed(0)+'°':isSimulation?'SIMULATION ONLY':'TRACKER IDLE';
+  if($('k_ldr')&&!isSimulation){$('k_ldr').querySelector('em').textContent=(d.ldrRaw??d.ldr)+' ADC · UNCAL';$('k_ldr').className='row sensor-uncalibrated'}
+  $('step').textContent=d.mode===4&&d.stepOk?`Tr ${d.tr} ms · Ts ${d.ts} ms\nOS ${d.os}% · SSE ${d.sse}%`:'run Mode 4';$('step').style.whiteSpace='pre';
+  const health=liveSensors?`MPU ${d.mpuOk?'OK':'MISSING'} · OLED ${d.oledOk?'OK':'MISSING'} · DHT ${d.dhtOk?'OK':'MISSING'}\nUS1 ${AeroLabScopeLogic.ultrasonicDiagnostic(d,'us1')} · ${us1Fresh?'FRESH':'STALE'}\nUS2 ${AeroLabScopeLogic.ultrasonicDiagnostic(d,'us2')} · ${us2Fresh?'FRESH':'STALE'}\nLDR raw/uncalibrated`:isSimulation?'SIMULATION — health not measured':'HIL override — sensor values not live';
+  $('sys').textContent=`up ${d.up??0}s · heap ${Math.round((d.heap||0)/1024)}k`+(d.rssi?` · ${d.rssi}dBm`:'')+(d.gasOk===0?'\nGAS WARMING UP':'')+'\n'+health;$('sys').style.whiteSpace='pre';
+
+  // Buffering signals for high-definition oscilloscopes
+  const push=(a,v)=>{a.push(Number.isFinite(v)?v:null);if(a.length>N)a.shift()};
+  const signals=AeroLabScopeLogic.modelSignals(d);
+  const {x1:x1_val,twin:twin_val,observer:x1hat_val,residual:res_val,
+    cusumPlus:cusum_val,cusumMinus:cusum_minus_val,effort:u_val,servo:srv_val}=signals;
+
+  push(B.x1, x1_val);
+  push(B.x1_hat, x1hat_val);
+  push(B.twin, twin_val);
+  push(B.r, res_val);
+  push(B.cs, cusum_val);
+  push(B.csMinus, cusum_minus_val);
+  push(B.u, u_val);
+  push(B.srv, srv_val);
+  push(B.ro, d.roll);
+  push(B.pi, d.pitch);
+  push(B.x2, d.x2);
+  push(B.t, d.temp);
+  push(B.th, d.adaptThresh);
+
+  // Live KPI Pill Updates
+  const delta = Number.isFinite(x1_val)&&Number.isFinite(twin_val)?Math.abs(x1_val-twin_val):null;
+  const coincEl = $('v_coinc');
+  if (coincEl) {
+    if (delta === null) {
+      coincEl.textContent = `MODEL DATA UNAVAILABLE · ${isSimulation?'SIMULATION':d.manualOverride?'HIL OVERRIDE':d.source==='ESP32_FIRMWARE'?'FIRMWARE MODEL':'UNVERIFIED'}`;
+      coincEl.style.color='var(--a)';
+    } else if (delta < 0.08) {
+      coincEl.textContent = `MODEL Δ: ${delta.toFixed(3)} · ${isSimulation?'SIMULATION':d.manualOverride?'HIL OVERRIDE':d.source==='ESP32_FIRMWARE'?'FIRMWARE MODEL':'UNVERIFIED'}`;
+      coincEl.style.color = isSimulation?'var(--a)':d.source==='ESP32_FIRMWARE'?'var(--cyan)':'var(--a)';
+    } else {
+      coincEl.textContent = `MODEL Δ: ${delta.toFixed(3)} · ${isSimulation?'SIMULATION':d.manualOverride?'HIL OVERRIDE':d.source==='ESP32_FIRMWARE'?'FIRMWARE MODEL':'UNVERIFIED'}`;
+      coincEl.style.color = 'var(--a)';
+    }
+  }
+
+  const cusumEl = $('v_cusum');
+  if (cusumEl) {
+    const detectorFieldsPresent=[d.residual,d.cusum_sp,d.cusum_sm].every(Number.isFinite);
+    if (!detectorFieldsPresent) {
+      cusumEl.textContent='DETECTOR DATA UNAVAILABLE';cusumEl.style.color='var(--a)';
+    } else if (res_val > 0.100 || cusum_val >= 0.060 || cusum_minus_val >= 0.060) {
+      cusumEl.textContent = `ALARM (S+=${cusum_val.toFixed(3)}, S-=${cusum_minus_val.toFixed(3)})`;
+      cusumEl.style.color = 'var(--r)';
+    } else {
+      cusumEl.textContent = `r:${res_val.toFixed(3)} | S+:${cusum_val.toFixed(3)} S-:${cusum_minus_val.toFixed(3)}`;
+      cusumEl.style.color = 'var(--g)';
+    }
+  }
+
+  const uEl = $('v_u');
+  if (uEl) {
+    uEl.textContent = `u:${Number.isFinite(u_val)?u_val.toFixed(2):'—'} | θ:${Number.isFinite(srv_val)?Math.round(srv_val*180)+'°':'—'}`;
+  }
+
+  if(d.alarm!==lastAl||(d.alarm&&d.reason!==lastReason)){
+    if(d.alarm===2&&lastAl!==2)ping();
+    note(['NOMINAL','CAUTION','RED ALARM'][d.alarm]+' '+(d.alarm?d.reason:''),['#7dff9b','#ffb020','#ff3b30'][d.alarm]);
+    lastAl=d.alarm;lastReason=d.reason;
+  }
+  if(d.mode!==lastMode){if(lastMode>=0)note('Mode → '+d.mode,'#7dff9b');lastMode=d.mode}
+  if(rec&&rows.length<60000)rows.push({...d,t:Date.now(),source:d.source||'UNVERIFIED_SOURCE'});
+
+  // Relay live telemetry frame to MATLAB Bridge HTTP server (port 8088)
+  if(d.source!=='UNVERIFIED_SOURCE'&&!window._pushBusy){
+    window._pushBusy = true;
+    fetch('http://127.0.0.1:8088/push',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(d)
+    }).catch(()=>{}).finally(()=>{window._pushBusy=false;});
+  }
+}
+
+function ping(){if(!beep||!ac)return;const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=880;g.gain.value=.08;o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+.15)}
+setInterval(()=>{fps=frames;frames=0;const ok=performance.now()-lastT<1500&&lastT>0;
+  if(live&&!ok){live=0;note('LINK LOST','#ff3b30')}
+  $('ld').style.background=ok?(streamIsSimulation||streamSource==='UNVERIFIED_SOURCE'?'#ffb020':'#7dff9b'):lastT?'#ff3b30':'#444';$('lt').textContent=ok?(streamIsSimulation?'SIMULATION':streamSource==='UNVERIFIED_SOURCE'?'UNVERIFIED':streamSource):lastT?'LINK LOST':'NO LINK';$('fps').textContent=ok?fps+' fps':''},1000);
+
+// ---------- realistic demo generator ----------
+function demoToggle(){
+  if(demo){clearInterval(demo.h);demo=null;$('bDemo').classList.remove('on');live=0;lastT=0;streamIsSimulation=false;note('SIMULATION STOPPED','#ffb020');return}
+  if(wifi){wifi=null;clearTimeout(wt);$('bWifi').classList.remove('on')}
+  if(usbProxy){usbProxy=false;clearTimeout(usbPollTimer);$('bUsb').classList.remove('on')}
+  if(port){port.close().catch(()=>{});port=writer=null;$('bUsb').classList.remove('on')}
+  demo={mode:3,t:0,frame:0,x1:.5,x1_hat:.5,y_twin:.5,Splus:0,Sminus:0,drift:false,rng:0xA3E01234};$('bDemo').classList.add('on');note('SIMULATION ONLY — synthetic illustrative data; not hardware','#ffb020');
+  demo.h=setInterval(()=>{
+    const s=demo, t=(s.t=(++s.frame)*.05); const m=s.mode;
+    // Shared, directly regression-tested signal generator; illustrative only.
+    const sig=AeroLabScopeLogic.demoFrame(t,s),r=sig.reference;
+    s.x1=sig.x1;s.y_twin=sig.y_twin;s.x1_hat=sig.x1_hat;
+    const res=sig.residual,cusum=sig.Splus,u_val=sig.u,roll=sig.roll,pitch=sig.pitch,al=sig.alarm;
+
+    frame({
+      temp: 28.5 + .5*Math.sin(t*.1), hum: 51, dT: .02, adaptThresh: 38,
+      mq135: 680 + Math.sin(t)*70|0, mq2: 510, ldr: 2150, vib: .02 + Math.abs(Math.sin(t*4))*.04,
+      roll: roll, pitch: pitch, dist1: 60 - s.x1*30, dist2: sig.dist2,
+      u: u_val, x1: s.x1, x1_hat: s.x1_hat, x2: (r - s.x1)*50, x2_hat: 0,
+      y_twin: s.y_twin, residual: res, cusum_sp: cusum, cusum_sm: s.Sminus, cusum_alarm: al===2?1:0,
+      servo: Math.round(s.x1 * 180), alarm: al,
+      reason: al===2 ? 'SYNTHETIC MODEL OFFSET (DEMO)' : (al===1 ? 'SYNTHETIC ATTITUDE EVENT (DEMO)' : 'SIMULATED MODEL STATES'),
+      muted: 0, mode: m, up: t|0, heap: 184000, rssi: -54, gasOk: 1, stepOk: 1
+    },true);
+  }, 50);
+}
+
+// ---------- HIGH-DEFINITION SCIENTIFIC OSCILLOSCOPE ENGINE ----------
+function fit(c){const r=Math.max(1,Math.min(devicePixelRatio||1,2)),b=c.getBoundingClientRect(),w=Math.round(b.width*r),h=Math.round(b.height*r);if(b.width<80||b.height<50||w<1||h<1)return null;if(c.width!==w||c.height!==h){c.width=w;c.height=h}const g=c.getContext('2d');g.setTransform(r,0,0,r,0,0);c._scopeCssWidth=b.width;c._scopeCssHeight=b.height;c._scopeDpr=r;return g}
+
+function drawScope(id, S, opt={}){
+  const c=$(id); if(!c)return;
+  const g=fit(c); if(!g)return; const dpr=c._scopeDpr, W=c._scopeCssWidth, H=c._scopeCssHeight;
+  // Keep the plotting area useful in the narrow cockpit bays. The old 102 px
+  // right gutter consumed up to a third of a bay and squeezed the traces.
+  const P=Math.max(30,Math.min(40,W*.12)),rightPad=Math.min(58,Math.max(42,W*.18));
+  const topPad=Math.min(40,Math.max(24,8+S.length*10)),botPad=7;
+  const plotH = H - topPad - botPad;
+
+  g.clearRect(0,0,W,H);
+
+  // Background phosphor dark
+  g.fillStyle='#03060a';
+  g.fillRect(0,0,W,H);
+
+  let mn=opt.min, mx=opt.max;
+  if(opt.dynamicMaxValue !== undefined) mx=Math.max(mx ?? 0, opt.dynamicMaxValue);
+  if(mn===undefined){
+    mn=1e9;mx=-1e9;
+    S.forEach(s=>s.a.forEach(v=>{if(Number.isFinite(v)){mn=Math.min(mn,v);mx=Math.max(mx,v)}}));
+    (opt.ref||[]).forEach(v=>{mn=Math.min(mn,v);mx=Math.max(mx,v)});
+    if(mn===1e9){mn=0;mx=1}
+    if(mx-mn<1e-6){mx=mn+1}
+    const pad=(mx-mn)*0.08; mn-=pad; mx+=pad;
+  }
+  const dp = opt.dp !== undefined ? opt.dp : 2;
+  const Y=v=>topPad + plotH - (v-mn)/(mx-mn)*plotH;
+
+  // Draw Reticle Grid
+  g.strokeStyle='#14221c';
+  g.lineWidth=1;
+  const gridDivs=3;
+  g.font='9px ui-monospace,monospace';
+  g.fillStyle='#667a71';
+
+  for(let i=0; i<=gridDivs; i++){
+    const y = topPad + i * (plotH / gridDivs);
+    const val = mx - i * (mx - mn) / gridDivs;
+    g.beginPath();
+    g.setLineDash([2, 3]);
+    g.moveTo(P, y);
+    g.lineTo(W-rightPad, y);
+    g.stroke();
+    g.setLineDash([]);
+    g.fillText(val.toFixed(dp), 4, Math.max(9,Math.min(H-2,y+3)));
+  }
+
+  // Vertical time division marks
+  g.strokeStyle='#0d1815';
+  for(let x=P; x<W-rightPad; x+=45){
+    g.beginPath();
+    g.setLineDash([1, 4]);
+    g.moveTo(x, topPad);
+    g.lineTo(x, H - botPad);
+    g.stroke();
+  }
+  g.setLineDash([]);
+
+  // Reference threshold lines
+  (opt.ref||[]).forEach((v,refIndex)=>{
+    const ry = Y(v);
+    if(ry>=topPad && ry<=H-botPad){
+      g.strokeStyle='#ff3b30bb';
+      g.lineWidth=1.5;
+      g.setLineDash([4, 3]);
+      g.beginPath();
+      g.moveTo(P, ry);
+      g.lineTo(W-rightPad, ry);
+      g.stroke();
+      g.setLineDash([]);
+      g.fillStyle='#ff3b30';
+      const label=Array.isArray(opt.refLabel)?(opt.refLabel[refIndex]||'LIMIT'):(opt.refLabel||'LIMIT');
+      g.textAlign='right';
+      g.fillText(label+' '+v.toFixed(dp), W-4, Math.max(10,Math.min(H-2,ry-3)), Math.max(0,rightPad-8));
+      g.textAlign='left';
+    }
+  });
+
+  // Plot Traces with Phosphor Glow
+  S.forEach(s=>{
+    if(!s.a || !s.a.length) return;
+    g.strokeStyle=s.c;
+    g.lineWidth=s.w||1.8;
+    if(s.dash) g.setLineDash(s.dash);
+    else g.setLineDash([]);
+
+    g.save();g.beginPath();g.rect(P,topPad,Math.max(0,W-P-rightPad),plotH);g.clip();g.beginPath();
+    const len=s.a.length;
+    let penDown=false;
+    for(let i=0; i<len; i++){
+      if(!Number.isFinite(s.a[i])){penDown=false;continue}
+      const x = P + (W - P - rightPad) * (i + N - len) / (N - 1);
+      const y = Math.max(topPad, Math.min(H - botPad, Y(s.a[i])));
+      if(!penDown){g.moveTo(x,y);penDown=true}else g.lineTo(x,y);
+    }
+    g.stroke();
+    g.restore();
+    g.setLineDash([]);
+  });
+
+  // Top Legend Badge Row
+  g.font='9px ui-monospace,monospace';
+  g.save();g.beginPath();g.rect(P,0,Math.max(0,W-P-rightPad),Math.min(H,S.length*12+4));g.clip();
+  let legY=10;const legendWidth=Math.max(0,W-P-rightPad-12);
+  S.forEach(s=>{
+    const legX=P+4;
+    g.fillStyle=s.c;
+    g.beginPath();
+    g.arc(legX + 3, legY-3, 2.5, 0, Math.PI*2);
+    g.fill();
+    g.fillStyle='#c9d8d0';
+    g.fillText(s.name||'', legX + 8, legY, Math.max(0,legendWidth-8));
+    legY+=12;
+  });
+  g.restore();
+}
+
+function drawPhase(){
+  const c=$('c4'); if(!c)return;
+  const g=fit(c); if(!g)return; const dpr=c._scopeDpr, W=c._scopeCssWidth, H=c._scopeCssHeight;
+  g.clearRect(0,0,W,H);
+  g.fillStyle='#03060a'; g.fillRect(0,0,W,H);
+
+  // Crosshairs at center (origin)
+  g.strokeStyle='#162520'; g.lineWidth=1;
+  g.beginPath(); g.moveTo(W/2, 0); g.lineTo(W/2, H); g.moveTo(0, H/2); g.lineTo(W, H/2); g.stroke();
+
+  const phaseLen=Math.min(B.x1.length,B.x2.length), phaseX=B.x1.slice(-phaseLen), phaseY=B.x2.slice(-phaseLen);
+  let m=1; phaseY.forEach(v=>{if(Number.isFinite(v))m=Math.max(m, Math.abs(v));});
+  g.strokeStyle='#7dff9b'; g.lineWidth=1.8;
+  g.beginPath();
+  for(const segment of AeroLabScopeLogic.finitePairSegments(phaseX, phaseY)){
+    segment.forEach(([x,y],i)=>{
+      const px=x*W*0.85+W*0.075, py=H/2-y/m*H*0.42;
+      if(i===0)g.moveTo(px,py);else g.lineTo(px,py);
+    });
+  }
+  g.stroke();
+
+  const lastSegment=AeroLabScopeLogic.finitePairSegments(phaseX,phaseY).at(-1);
+  if(lastSegment&&lastSegment.length){
+    const [x,y]=lastSegment[lastSegment.length-1];
+    g.fillStyle='#ffb020';
+    g.beginPath();
+    g.arc(x*W*0.85+W*0.075,H/2-y/m*H*0.42,4,0,Math.PI*2);
+    g.fill();
+  }
+  g.font='9px ui-monospace,monospace';
+  g.fillStyle='#667a71';
+  g.fillText('x1 (pos) →', Math.max(2,W-72), H/2 - 4);
+  g.fillText('↑ x2 (vel)', W/2 + 5, 12);
+}
+
+// Scope Render Loop (10 Hz)
+setInterval(()=>{
+  // SCOPE 1: MODEL STATE COMPARISON
+  drawScope('c1', [
+    {a: B.x1, c: '#7dff9b', name: 'Firmware model x1', w: 2.0},
+    {a: B.twin, c: '#ffb020', name: 'y_twin (Twin)', w: 1.8, dash: [4, 2]},
+    {a: B.x1_hat, c: '#38bdf8', name: 'x̂1 (Obs)', w: 1.5, dash: [2, 2]}
+  ], {min: 0, max: 1.0, dp: 2});
+
+  // SCOPE 2: RESIDUAL & CUSUM FAULT DIAGNOSIS
+  // Normalize each detector against its own limit so different units never
+  // share a misleading raw scale. Threshold = 1 on all three traces.
+  drawScope('c2', [
+    {a: B.r.map(v=>Number.isFinite(v)?v/0.100:null), c: '#ff3b30', name: 'r/δ (δ=0.100)', w: 2.0},
+    {a: B.cs.map(v=>Number.isFinite(v)?v/0.060:null), c: '#ffb020', name: 'S+/h (h=0.060)', w: 1.8},
+    {a: B.csMinus.map(v=>Number.isFinite(v)?v/0.060:null), c: '#38bdf8', name: 'S-/h (h=0.060)', w: 1.6}
+  ], {min: 0, max: 1.25, dp: 2, ref: [1], refLabel: 'LIMIT=1'});
+
+  // SCOPE 3: LQR CONTROL EFFORT & ACTUATOR DAMPER
+  drawScope('c3', [
+    {a: B.u, c: '#c084fc', name: 'u(t) Effort', w: 1.8},
+    {a: B.srv, c: '#38bdf8', name: 'θ/180 Servo', w: 1.6}
+  ], {min: 0, max: 1.0, dp: 2});
+
+  // SCOPE 4: ATTITUDE OR PHASE PORTRAIT
+  if(showPhase){
+    drawPhase();
+  } else {
+    drawScope('c4', [
+      {a: B.ro, c: '#7dff9b', name: 'Roll φ [°]', w: 1.8},
+      {a: B.pi, c: '#ffb020', name: 'Pitch θ [°]', w: 1.8}
+    ], {min: -25, max: 25, dp: 1, ref: [0], refLabel: '0°'});
+  }
+}, 100);
+// drawScope() measures and fits chart canvases on every render tick. Avoid
+// resizing every canvas here: #vp also owns a WebGL canvas, and assigning its
+// bitmap dimensions from the 2-D chart fitter can clear/reset the 3-D view.
+
+// ---------- 3D VIEWPORT (Three.js WebGL Engine) ----------
+let R,Sc,Ca,quad,rig,view='quad',th=.7,ph=.38,dist=9;
+const T={roll:0,pitch:0,alt:1,srv:90,al:0,u:.5,rad:60};
+
+function M(c,e){return new THREE.MeshStandardMaterial({color:c,metalness:.7,roughness:.35,emissive:e||0})}
+function Bx(w,h,d,c,x,y,z,p){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),typeof c==='object'?c:M(c));m.position.set(x||0,y||0,z||0);(p||0)&&p.add(m);return m}
+function Cy(r,h,c,x,y,z,p){const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,20),typeof c==='object'?c:M(c));m.position.set(x||0,y||0,z||0);p&&p.add(m);return m}
+
+function buildQuad(){
+  const g=new THREE.Group(),body=new THREE.Group();g.add(body);g.userData.props=[];
+  Bx(1.3,.34,1.7,0x1a211e,0,0,0,body);Bx(.85,.12,1.05,0x2a352f,0,.22,0,body);Bx(.5,.08,.4,0xffb020,0,.3,.1,body);
+  [Math.PI/4,-Math.PI/4].forEach(a=>{const r=Bx(4.2,.1,.2,0x121816,0,0,0,body);r.rotation.y=a});
+  const led=new THREE.Mesh(new THREE.SphereGeometry(.09,12,12),new THREE.MeshBasicMaterial({color:0x7dff9b}));led.position.set(0,.3,-.8);body.add(led);g.userData.led=led;
+  [[1,1],[-1,1],[1,-1],[-1,-1]].forEach(([x,z])=>{
+    const m=Cy(.2,.3,0x2a352f,x*1.48,.1,z*1.48,body),p=new THREE.Group();p.position.set(x*1.48,.32,z*1.48);
+    Bx(1.8,.02,.12,0x9fb3aa,0,0,0,p);Bx(.12,.02,1.8,0x9fb3aa,0,0,0,p);
+    const d=new THREE.Mesh(new THREE.CylinderGeometry(.92,.92,.01,36),new THREE.MeshBasicMaterial({color:0x7dff9b,transparent:true,opacity:.07}));p.add(d);body.add(p);g.userData.props.push(p);
+  });
+  g.userData.body=body;return g;
+}
+
+function buildRig(){
+  const g=new THREE.Group();
+  Bx(5,.2,3.6,0x141a18,0,-.1,0,g);Bx(4.6,.04,3.2,0x0c1210,0,.03,0,g);Bx(.32,2.6,.32,0x2a352f,-1.2,1.3,0,g);
+  const piv=new THREE.Group();piv.position.set(-1.2,2.6,0);g.add(piv);g.userData.piv=piv;
+  Bx(.7,.55,.55,0x0b0f0d,0,0,0,piv);Cy(.2,.6,0xffb020,0,0,0,piv).rotation.x=Math.PI/2;
+  const fl=new THREE.Group();piv.add(fl);g.userData.fl=fl;Bx(3.2,.07,1.2,0x9fb3aa,1.8,0,0,fl);
+  const rd=new THREE.Group();rd.position.set(3.4,0,0);fl.add(rd);
+  Bx(.3,.4,.8,0x1a211e,0,0,0,rd);Cy(.14,.1,0xc9d8d0,.2,0,.2,rd).rotation.z=Math.PI/2;Cy(.14,.1,0xc9d8d0,.2,0,-.2,rd).rotation.z=Math.PI/2;
+  const bm=new THREE.Mesh(new THREE.BoxGeometry(1,.04,.04),new THREE.MeshBasicMaterial({color:0xffb020}));bm.geometry.translate(.5,0,0);bm.position.set(.3,0,0);rd.add(bm);g.userData.beam=bm;
+  Bx(.7,.4,.5,0x1a211e,1.2,.2,1.2,g);Cy(.14,.1,0xc9d8d0,1.05,.5,1.2,g).rotation.x=Math.PI/2;Cy(.14,.1,0xc9d8d0,1.35,.5,1.2,g).rotation.x=Math.PI/2;
+  const al=new THREE.Mesh(new THREE.BoxGeometry(.04,1,.04),new THREE.MeshBasicMaterial({color:0x7dff9b}));al.geometry.translate(0,.5,0);al.position.set(1.2,.6,1.2);g.add(al);g.userData.alt=al;
+  const imu=new THREE.Group();imu.position.set(1.8,.12,-.8);g.add(imu);Bx(.9,.06,.7,0x0c3a22,0,0,0,imu);Bx(.25,.1,.25,0x0b0f0d,0,.07,0,imu);g.userData.imu=imu;
+  const led=new THREE.Mesh(new THREE.SphereGeometry(.1,12,12),new THREE.MeshBasicMaterial({color:0x7dff9b}));led.position.set(-2,.12,1.4);g.add(led);g.userData.led=led;
+  return g;
+}
+
+function init3d(){
+  if(typeof THREE==='undefined'){$('vp').insertAdjacentHTML('beforeend','<div class="hud" style="inset:45% 0 0 0;text-align:center">vendor/three.min.js is missing; restore the dashboard runtime dependency.</div>');return}
+  const cv=document.createElement('canvas');$('vp').prepend(cv);R=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});R.setPixelRatio(Math.min(devicePixelRatio,2));
+  Sc=new THREE.Scene();Sc.fog=new THREE.Fog(0x06080a,12,30);Ca=new THREE.PerspectiveCamera(45,1,.1,100);
+  Sc.add(new THREE.AmbientLight(0xffffff,.85));const k=new THREE.DirectionalLight(0xffffff,1.3);k.position.set(5,9,4);Sc.add(k);const f=new THREE.PointLight(0x7dff9b,.8,25);f.position.set(-5,3,-4);Sc.add(f);
+  const gr=new THREE.GridHelper(24,24,0x1f3a2c,0x10201a);gr.position.y=-.2;Sc.add(gr);
+  quad=buildQuad();rig=buildRig();Sc.add(quad);Sc.add(rig);rig.visible=false;
+
+  let drag=false,lx=0,ly=0;
+  cv.onpointerdown=e=>{drag=true;lx=e.clientX;ly=e.clientY};
+  onpointerup=()=>drag=false;
+  onpointermove=e=>{if(!drag)return;th-=(e.clientX-lx)*.008;ph=Math.max(.05,Math.min(1.4,ph+(e.clientY-ly)*.006));lx=e.clientX;ly=e.clientY};
+  cv.onwheel=e=>{e.preventDefault();dist=Math.max(4,Math.min(18,dist+e.deltaY*.01))};
+
+  $('mQuad').onclick=()=>setView('quad');$('mRig').onclick=()=>setView('rig');
+  addEventListener('resize',rs);rs();loop();
+}
+
+function setView(v){view=v;quad.visible=v==='quad';rig.visible=v==='rig';$('mQuad').classList.toggle('on',v==='quad');$('mRig').classList.toggle('on',v==='rig')}
+function rs(){if(!R)return;const w=$('vp').clientWidth,h=$('vp').clientHeight;if(w&&h){R.setSize(w,h,false);Ca.aspect=w/h;Ca.updateProjectionMatrix();}}
+const lerp=(a,b,k)=>a+(b-a)*k,COL=[0x7dff9b,0xffb020,0xff3b30];let tick=0,pt=0;
+
+function loop(){
+  requestAnimationFrame(loop);const now=performance.now(),dt=Math.min(.05,(now-pt)/1000||.016);pt=now;
+  if(D){T.roll=D.roll;T.pitch=D.pitch;T.alt=D.dist1;T.srv=D.servo;T.al=D.alarm;T.u=D.u;T.rad=D.dist2}
+  const d2r=Math.PI/180,ledc=COL[T.al]||COL[0];
+
+  if(view==='quad'){
+    const b=quad.userData.body;
+    // Direct 3D MPU Euler tilt tracking
+    b.rotation.z=lerp(b.rotation.z,-T.roll*d2r,.25);
+    b.rotation.x=lerp(b.rotation.x,T.pitch*d2r,.25);
+    quad.position.y=lerp(quad.position.y,.4+Math.min(T.alt,100)/100*2.6,.12);
+    quad.userData.led.material.color.setHex(ledc);
+    const sp=(8+T.u*30+(D?D.vib*40:0))*dt;
+    quad.userData.props.forEach((p,i)=>p.rotation.y+=(i%2?-1:1)*sp);
+  } else {
+    const p=rig.userData;
+    p.fl.rotation.z=lerp(p.fl.rotation.z,-(T.srv-90)*d2r,.3);
+    p.imu.rotation.z=lerp(p.imu.rotation.z,-T.roll*d2r,.25);
+    p.imu.rotation.x=lerp(p.imu.rotation.x,T.pitch*d2r,.25);
+    p.beam.scale.x=Math.max(.05,Math.min(T.rad,200)/100*3);
+    p.alt.scale.y=Math.max(.05,Math.min(T.alt,200)/100*2.4);
+    p.led.material.color.setHex(ledc);
+  }
+  Ca.position.set(Math.sin(th)*Math.cos(ph)*dist,Math.sin(ph)*dist+1,Math.cos(th)*Math.cos(ph)*dist);
+  Ca.lookAt(0,view==='quad'?1.3:1.1,0);
+  R.render(Sc,Ca);
+}
+
+// Controls, recorder & shortcut handlers
+$('bUsb').onclick=usb;$('bWifi').onclick=wifiToggle;$('bDemo').onclick=demoToggle;
+if($('bSnd')) $('bSnd').onclick=()=>{beep=!beep;$('bSnd').textContent=beep?'SND ON':'SND OFF';$('bSnd').classList.toggle('on',beep);if(beep&&!ac)ac=new(window.AudioContext||window.webkitAudioContext)()};
+if($('bSndToggle')) $('bSndToggle').onclick=toggleBuzzerSound;
+$('bRec').onclick=()=>{rec=!rec;$('bRec').classList.toggle('on',rec);$('bRec').textContent=rec?'■ STOP':'● REC';if(rec)rows=[];note(rec?'Recording':'Stopped ('+rows.length+' frames)','#ffb020')};
+$('bCsv').onclick=()=>{if(!rows.length)return show('Nothing recorded: press REC first');const k=Object.keys(rows[0]);
+  const csv=k.join(',')+'\n'+rows.map(r=>k.map(c=>JSON.stringify(r[c]??'')).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='flight_'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.csv';a.click()};
+addEventListener('keydown',e=>{if(/INPUT/.test(e.target.tagName)||e.ctrlKey||e.metaKey)return;if(/^[0-5]$/.test(e.key))send('MODE:'+e.key);else if(e.key==='Escape')send('RESET');else if(e.key==='v')setView(view==='quad'?'rig':'quad')});
+try{$('ip').value=localStorage.getItem('ip')||'192.168.4.1'}catch(e){}
+
+let _mlBusy = false;
+async function _launchScope(path, label){
+  let mode = demo ? 'demo' : (wifi ? 'wifi' : (usbProxy || port ? 'usb' : 'auto'));
+  if(!demo&&!wifi&&!usbProxy&&!port){
+    try{const r=await fetch('http://127.0.0.1:8088/status',{cache:'no-store'}),s=await r.json();if(s.usb&&s.usb.connected)mode='usb'}catch(e){}
+  }
+  note('Launching ' + label + ' (' + mode.toUpperCase() + ')...', '#818cf8');
+  try {
+    const res = await fetch('http://127.0.0.1:8088/' + path + '?mode=' + mode, {cache:'no-store'});
+    const d = await res.json();
+    if(d.status === 'ok') note(d.message, '#7dff9b');
+    else if(d.status === 'starting') note(d.message + (d.log ? ' · log: ' + d.log : ''), '#ffb020');
+    else if(d.status === 'fallback') note(d.message + (d.log ? ' · log: ' + d.log : ''), '#ffb020');
+    else note('Launch error: ' + d.message + (d.log ? ' · log: ' + d.log : ''), '#ff4444');
+  } catch(e) {
+    note('Bridge not running! Run start_bridge.bat from project folder first.', '#ff4444');
+  }
+}
+async function launchMatlabQuick(){
+  if(_mlBusy) { note('MATLAB is still starting - wait, or click the PYTHON button', '#ffb020'); return; }
+  _mlBusy = true; setTimeout(()=>{_mlBusy=false;}, 8000); // blocks double-clicks that froze laptop
+  await _launchScope('launch', 'MATLAB scope');
+}
+async function launchPythonScope(){
+  await _launchScope('python', 'Python real-time scope');
+}
+
+init3d();
+</script>
+</body>
+</html>

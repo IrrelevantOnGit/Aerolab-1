@@ -1,0 +1,38 @@
+# PlatformIO/ESP32 build output
+.pio/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Local-only board credentials; never commit
+wifi_secrets.h
+
+# Temporary Word/Office files
+~$*.docx
+~$*.xlsx
+
+# Compiled test binaries and objects
+*.obj
+*.exe
+test/host_control_test.exe
+
+# Runtime logs
+*.log
+matlab_scope_startup.log
+python_scope_startup.log
+
+# Temporary and scratch working directories
+scratch/
+archive/
+
+# Redundant layout check screenshot dumps
+results/verification/template_authoring/
+results/verification/paper_render_2026-10-24/
+results/verification/paper_render_review/
+results/verification/reference_review/
+results/verification/faculty_guide_render_review/
+results/verification/scope_runtime_review/
+
+# Local backup zip
+AeroLab_Keybase_Submission.zip
